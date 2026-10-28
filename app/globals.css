@@ -312,6 +312,15 @@ a.visually-hidden:focus {
   text-decoration: none;
   font-weight: 600;
   font-size: 15px;
+  white-space: nowrap;
+}
+
+/* Between the mobile breakpoint and full width the nav (plus language
+   switcher) is tight: keep labels on one line and close the gaps. */
+@media (max-width: 1100px) {
+  .nav {
+    gap: 18px;
+  }
 }
 
 .nav a:not(.btn):hover {
@@ -375,6 +384,39 @@ a.visually-hidden:focus {
     color: #fff;
     margin-top: 6px;
   }
+}
+
+/* Language switcher: DE | EN | PL. After the nav rules so it overrides
+   `.nav a` / `.mobile-menu a` at equal specificity. */
+.lang-switch {
+  display: flex;
+  align-items: center;
+}
+
+.lang-switch a {
+  padding: 2px 8px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 1.2;
+}
+
+.lang-switch a:first-child {
+  padding-left: 0;
+}
+
+.lang-switch a + a {
+  border-left: 1px solid var(--line);
+}
+
+.lang-switch a[aria-current="true"] {
+  font-weight: 800;
+}
+
+.mobile-menu .lang-switch {
+  padding: 8px 12px 14px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
 }
 
 /* ── Hero ─────────────────────────────────────────────────────────────── */

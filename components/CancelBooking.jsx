@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function CancelBooking({ id, token }) {
+export default function CancelBooking({ id, token, lang, labels }) {
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -13,12 +13,14 @@ export default function CancelBooking({ id, token }) {
     setBusy(true);
     setError("");
     try {
-      const res = await fetch(`/api/bookings/${id}?t=${encodeURIComponent(token)}`, { method: "DELETE" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Absage hat nicht geklappt.");
+      const qs = new URLSearchParams({ t: token, lang });
+      const res = await fetch(`/api/bookings/${id}?${qs}`, { method: "DELETE" });
+      const data = await res.json().catch(() => ({}));
+      // 4xx messages come localised from the API; anything else gets the generic text.
+      if (!res.ok) throw new Error((res.status < 500 && data.error) || labels.failed);
       router.refresh();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || labels.failed);
       setBusy(false);
     }
   }
@@ -26,19 +28,19 @@ export default function CancelBooking({ id, token }) {
   if (!confirming) {
     return (
       <button type="button" className="btn btn-danger" onClick={() => setConfirming(true)}>
-        Termin absagen
+        {labels.button}
       </button>
     );
   }
   return (
     <div>
-      <p style={{ marginBottom: 12, fontWeight: 600 }}>Wirklich absagen? Der Termin wird für andere freigegeben.</p>
+      <p style={{ marginBottom: 12, fontWeight: 600 }}>{labels.confirm}</p>
       <div className="actions">
         <button type="button" className="btn btn-danger" disabled={busy} onClick={cancel}>
-          {busy ? "Wird abgesagt …" : "Ja, Termin absagen"}
+          {busy ? labels.busy : labels.yes}
         </button>
         <button type="button" className="btn btn-ghost" disabled={busy} onClick={() => setConfirming(false)}>
-          Termin behalten
+          {labels.keep}
         </button>
       </div>
       {error && (

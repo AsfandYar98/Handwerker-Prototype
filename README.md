@@ -2,17 +2,18 @@
 
 A config-driven website + booking system for trade businesses (Handwerksbetriebe). The first configuration is based on [badsanierung-berlin.de](https://badsanierung-berlin.de/) (Stefan Sniegowski GmbH).
 
-**To create it for another company, edit one file: [`site.config.js`](site.config.js)** — company data, services, reference projects, FAQ, colours, opening hours and appointment types. Nothing else needs to change.
+**To create it for another company, edit one file: [`site.config.js`](site.config.js)** — company data, services, reference projects, FAQ, section headings (`copy`), colours, opening hours and appointment types. Nothing else needs to change.
 
 ## Features
 
 | Area | What it does |
 | --- | --- |
 | Website | Hero, services (with detail pages), about/advantages, 3-step process, reference gallery with filter, partner brands, FAQ, contact |
-| Online booking (`/termin`) | Step-by-step: service → appointment type → day/time → details. Real availability from opening hours, lead time, buffers and existing bookings; double-booking is rejected |
+| Languages | German (default), English, Polish: `/de`, `/en`, `/pl` with a DE/EN/PL switcher. Booking flow, emails and `.ics` files follow the customer's language. Admin stays German |
+| Online booking (`/<lang>/termin`) | Step-by-step: service → appointment type → day/time → details. Real availability from opening hours, lead time, buffers and existing bookings; double-booking is rejected |
 | Two appointment types | **Besichtigung vor Ort** (on-site, needs address, confirmed by the company) and **Video-Beratung** (auto-confirmed) |
 | Meeting link to both parties | Video calls get a meeting link that is emailed to the customer **and** the company. Either via **Calendly** (Calendly sends Zoom/Meet/Teams link to both) or, without Calendly, an automatic Jitsi link sent by the app |
-| Customer self-service | Confirmation email with `.ics` calendar file and a private link (`/buchung/<id>?t=…`) to view or cancel |
+| Customer self-service | Confirmation email with `.ics` calendar file and a private link (`/<lang>/buchung/<id>?t=…`) to view or cancel |
 | Admin dashboard (`/admin`) | Open requests / upcoming / past / cancelled, search, confirm/cancel/done (customer is emailed automatically), internal notes, closed days (holidays), setup checklist |
 | Demo safety | While `NEXT_PUBLIC_DEMO_MODE` isn't `false`: small "Prototyp-Version" line in the footer, `noindex`, and company notifications go **only** to `NOTIFY_EMAIL` – never to the real company address |
 
@@ -27,6 +28,24 @@ npm test           # logic tests (slots, bookings, Calendly signature, .ics …)
 ```
 
 Without any environment variables it runs fully in memory with sample bookings.
+
+## Languages
+
+Every public URL starts with the language: `/de`, `/en`, `/pl` (e.g. `/en/termin`, `/pl/referenzen`). `/` redirects to the visitor's language: the `lang` cookie set by the language switcher, else the first supported language in the browser's `Accept-Language`, else German. Unknown languages (`/fr/…`) show the not-found page. Old unprefixed links (`/termin`, `/buchung/<id>` from earlier emails) redirect to `/de/…`.
+
+Where texts live:
+
+- **UI strings** (navigation, buttons, booking wizard, validation, emails, 404): `lib/i18n/de.js`, `en.js`, `pl.js` — flat objects with identical keys. German is the source of truth; `npm test` fails if a key is missing or empty in any language.
+- **Company content** (services, FAQ, hero, section headings under `copy` …): `site.config.js`, as `{ de, en, pl }` objects. A plain string is used as-is in every language, so an untranslated config still works.
+
+Each booking stores the customer's `lang`. Customer emails, the `.ics` file and the link in the confirmation email use it; company notifications and the admin dashboard (`/admin`) stay German only.
+
+**Adding a language** (e.g. French):
+
+1. Add `"fr"` to `LANGS` and `LOCALES` (`"fr-FR"`) and its name to `LANG_NAMES` in `lib/i18n/config.js`.
+2. Copy `lib/i18n/de.js` (the source of truth) to `fr.js`, translate the values, and register it in `lib/i18n/index.js`.
+3. Add `fr` to every `{ de, en, pl }` text in `site.config.js` (missing entries fall back to German; `npm test` lists them).
+4. Run `npm test` — the parity test checks keys, placeholders and empty values.
 
 ## Push to GitHub (your other account)
 
@@ -62,17 +81,21 @@ Without Calendly, video calls use the built-in calendar and a generated `meet.ji
 
 ```
 site.config.js            ← everything company-specific
-app/(site)/               ← public pages: home, leistungen/[slug], referenzen, termin, buchung/[id]
-app/admin/                ← dashboard + login
+app/[lang]/               ← public site (root layout per language) + not-found
+app/[lang]/(site)/        ← public pages: home, leistungen/[slug], referenzen, termin, buchung/[id]
+app/(root)/page.jsx       ← "/" → redirect to the visitor's language
+app/admin/                ← dashboard + login (German only, own root layout)
 app/api/                  ← slots, bookings, admin, calendly callback, calendly webhook
 components/               ← BookingWizard, CalendlyEmbed, AdminDashboard, …
 lib/                      ← slots, store (Redis/memory), mail (Resend), calendly, ics, auth, time
+lib/i18n/                 ← dictionaries (de/en/pl), getDict, t(), withLang(), date formatting
 scripts/calendly-webhook.mjs
-tests/lib.test.js
+tests/lib.test.js, tests/i18n.test.js
 ```
 
 ## Before going live for a real company
 
+- Have a native speaker review the English and Polish texts (`lib/i18n/en.js`, `pl.js`, and the `en`/`pl` entries in `site.config.js`) — they were generated.
 - Replace the placeholder reference projects and confirm image rights with the company.
 - Set `NEXT_PUBLIC_DEMO_MODE=false`, `ADMIN_PASSWORD`, a verified `MAIL_FROM` domain and `NOTIFY_EMAIL`.
 - Link to the company's own Impressum/Datenschutz (in `site.config.js`), and mention Calendly/Resend/Upstash in the privacy policy.

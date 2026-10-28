@@ -2,6 +2,7 @@ import { getBooking } from "@/lib/store";
 import { cancelByCustomer, publicBooking } from "@/lib/bookings";
 import { isValidBookingToken } from "@/lib/auth";
 import { errorResponse, json } from "@/lib/admin-session";
+import { getDict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,13 @@ export async function GET(request, { params }) {
   return json({ booking: publicBooking(booking) });
 }
 
-// DELETE /api/bookings/:id?t=token — customer cancels.
+// DELETE /api/bookings/:id?t=token&lang=en — customer cancels; errors in `lang`.
 export async function DELETE(request, { params }) {
+  const lang = new URL(request.url).searchParams.get("lang");
   const { id, ok } = await authorize(request, params);
-  if (!ok) return json({ error: "Link ungültig." }, 403);
+  if (!ok) return json({ error: getDict(lang)["error.invalidLink"] }, 403);
   try {
-    const booking = await cancelByCustomer(id);
+    const booking = await cancelByCustomer(id, lang);
     return json({ booking: publicBooking(booking) });
   } catch (err) {
     return errorResponse(err);

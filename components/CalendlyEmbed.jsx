@@ -13,7 +13,10 @@ function loadScript() {
     s.src = SCRIPT_SRC;
     s.async = true;
     s.onload = () => resolve();
-    s.onerror = () => reject(new Error("Calendly konnte nicht geladen werden."));
+    s.onerror = () => {
+      window.__calendlyLoading = null; // allow a retry on the next mount
+      reject(new Error("Calendly widget failed to load"));
+    };
     document.head.appendChild(s);
   });
   return window.__calendlyLoading;
@@ -24,10 +27,10 @@ function loadScript() {
  * visitor completes a booking. Calendly then emails the confirmation and the
  * meeting link to both the visitor and the company.
  */
-export default function CalendlyEmbed({ url, onScheduled }) {
+export default function CalendlyEmbed({ url, onScheduled, labels }) {
   const ref = useRef(null);
   const cb = useRef(onScheduled);
-  const [error, setError] = useState("");
+  const [failed, setFailed] = useState(false);
   cb.current = onScheduled;
 
   useEffect(() => {
@@ -38,7 +41,7 @@ export default function CalendlyEmbed({ url, onScheduled }) {
         ref.current.innerHTML = "";
         window.Calendly.initInlineWidget({ url, parentElement: ref.current });
       })
-      .catch((e) => setError(e.message));
+      .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
@@ -57,12 +60,12 @@ export default function CalendlyEmbed({ url, onScheduled }) {
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  if (error) {
+  if (failed) {
     return (
       <p className="alert" role="alert">
-        {error} Bitte laden Sie die Seite neu oder rufen Sie uns an.
+        {labels.loadError}
       </p>
     );
   }
-  return <div ref={ref} className="calendly-frame" aria-label="Terminauswahl von Calendly" />;
+  return <div ref={ref} className="calendly-frame" aria-label={labels.frame} />;
 }

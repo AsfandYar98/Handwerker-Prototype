@@ -2,6 +2,7 @@ import { getBooking } from "@/lib/store";
 import { isValidBookingToken } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin-session";
 import { bookingIcs } from "@/lib/ics";
+import { getDict } from "@/lib/i18n";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +18,7 @@ export async function GET(request, { params }) {
   return new Response(bookingIcs(booking, { cancelled: booking.status === "cancelled" }), {
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",
-      "Content-Disposition": `attachment; filename="termin-${booking.ref}.ics"`,
+      "Content-Disposition": `attachment; filename="${getDict(booking.lang)["ics.file"]}-${booking.ref}.ics"`,
       "Cache-Control": "no-store",
     },
   });
