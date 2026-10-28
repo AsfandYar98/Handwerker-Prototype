@@ -4,6 +4,13 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { siteConfig, getBookingType, getService } from "@/site.config";
 import { formatDateLong, formatDateShort, nowIn, toMin } from "@/lib/time";
+import { langOrDefault } from "@/lib/i18n/config";
+import { withLang } from "@/lib/i18n/href";
+import { t } from "@/lib/i18n/t";
+
+// The dashboard is German only; localisable config texts are shown in German.
+const de = (value) => t(value, "de");
+const languageName = new Intl.DisplayNames("de", { type: "language" });
 
 const STATUS = { requested: "Angefragt", confirmed: "Bestätigt", done: "Erledigt", cancelled: "Abgesagt" };
 
@@ -167,6 +174,12 @@ export default function AdminDashboard({ setup }) {
         <dl className="kv">
           <dt>Kunde</dt>
           <dd>{cust.name}</dd>
+          {langOrDefault(b.lang) !== "de" && (
+            <>
+              <dt>Sprache</dt>
+              <dd>{languageName.of(b.lang)}</dd>
+            </>
+          )}
           <dt>Kontakt</dt>
           <dd>
             {cust.phone && <a href={`tel:${cust.phone.replace(/[^\d+]/g, "")}`}>{cust.phone}</a>}
@@ -185,10 +198,10 @@ export default function AdminDashboard({ setup }) {
           )}
           <dt>Termin</dt>
           <dd>
-            {b.date ? `${formatDateLong(b.date, siteConfig.locale)}, ${b.time} Uhr` : "–"} ({b.durationMinutes} Min., {type?.name})
+            {b.date ? `${formatDateLong(b.date, siteConfig.locale)}, ${b.time} Uhr` : "–"} ({b.durationMinutes} Min., {de(type?.name)})
           </dd>
           <dt>Leistung</dt>
-          <dd>{service?.name || "Noch offen"}</dd>
+          <dd>{de(service?.name) || "Noch offen"}</dd>
           {(d.bathroomSize || d.timeframe) && (
             <>
               <dt>Bad / Zeitraum</dt>
@@ -300,7 +313,7 @@ export default function AdminDashboard({ setup }) {
         <div className="wrap">
           <strong>{siteConfig.company.brand} – Dashboard</strong>
           <span style={{ display: "flex", gap: 18, alignItems: "center" }}>
-            <Link href="/">Zur Website</Link>
+            <Link href={withLang("de", "/")}>Zur Website</Link>
             <button type="button" className="link-btn" onClick={logout}>
               Abmelden
             </button>
@@ -321,7 +334,7 @@ export default function AdminDashboard({ setup }) {
             <button type="button" className="btn btn-small btn-ghost" onClick={load}>
               Aktualisieren
             </button>
-            <Link href="/termin" className="btn btn-small" target="_blank">
+            <Link href={withLang("de", "/termin")} className="btn btn-small" target="_blank">
               Termin eintragen
             </Link>
           </div>
@@ -355,9 +368,9 @@ export default function AdminDashboard({ setup }) {
               </label>
               <select id="tf" className="select" value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
                 <option value="">Alle Terminarten</option>
-                {siteConfig.bookingTypes.map((t) => (
-                  <option key={t.key} value={t.key}>
-                    {t.name}
+                {siteConfig.bookingTypes.map((bt) => (
+                  <option key={bt.key} value={bt.key}>
+                    {de(bt.name)}
                   </option>
                 ))}
               </select>
@@ -396,7 +409,7 @@ export default function AdminDashboard({ setup }) {
                         <span className="bk-who">
                           <strong>{b.customer?.name || "Unbekannt"}</strong>
                           <span>
-                            {type?.name}
+                            {de(type?.name)}
                             {b.customer?.zip ? ` · ${b.customer.zip} ${b.customer.city || ""}` : ""}
                             {b.source === "calendly" ? " · Calendly" : ""}
                           </span>

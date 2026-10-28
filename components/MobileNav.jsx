@@ -3,8 +3,9 @@
 import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import LanguageSwitcher from "./LanguageSwitcher";
 
-export default function MobileNav({ links }) {
+export default function MobileNav({ lang, links, book, labels }) {
   const ref = useRef(null);
   const pathname = usePathname();
 
@@ -18,15 +19,16 @@ export default function MobileNav({ links }) {
 
   return (
     <details className="mobile-nav" ref={ref}>
-      <summary>Menü</summary>
-      <nav className="mobile-menu" aria-label="Hauptnavigation mobil">
+      <summary>{labels.menu}</summary>
+      <nav className="mobile-menu" aria-label={labels.nav}>
+        <LanguageSwitcher lang={lang} label={labels.lang} onNavigate={close} />
         {links.map((l) => (
           <Link key={l.href} href={l.href} onClick={close}>
             {l.label}
           </Link>
         ))}
-        <Link href="/termin" className="btn" onClick={close}>
-          Termin buchen
+        <Link href={book.href} className="btn" onClick={close}>
+          {book.label}
         </Link>
       </nav>
     </details>

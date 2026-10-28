@@ -29,6 +29,7 @@ export async function POST(request) {
       phone: body.phone,
       message: body.message,
       service: body.service,
+      lang: body.lang,
     });
     return json({
       ok: true,

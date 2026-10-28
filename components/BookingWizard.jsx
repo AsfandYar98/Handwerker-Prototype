@@ -3,12 +3,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { siteConfig, getBookingType, getService, usesCalendly } from "@/site.config";
-import { dayParts, formatDateLong } from "@/lib/time";
+import { dayParts } from "@/lib/time";
 import { calendlyEmbedUrl } from "@/lib/calendly-url";
+import { localeFor } from "@/lib/i18n/config";
+import { fill, formatClock, formatDate, formatDateTime, formatDuration } from "@/lib/i18n/format";
+import { withLang } from "@/lib/i18n/href";
+import { t } from "@/lib/i18n/t";
 import CalendlyEmbed from "./CalendlyEmbed";
 
-const SIZES = ["unter 6 m²", "6–10 m²", "über 10 m²", "Weiß ich nicht"];
-const TIMEFRAMES = ["So bald wie möglich", "In 1–3 Monaten", "In 3–6 Monaten", "Flexibel"];
+// Option keys are what the form sends; the API stores the German label so the
+// company side stays German whatever language the customer used.
+const SIZES = ["small", "medium", "large", "unknown"];
+const TIMEFRAMES = ["asap", "soon", "later", "flexible"];
 
 const emptyForm = {
   name: "",
@@ -24,8 +30,22 @@ const emptyForm = {
   website: "",
 };
 
-export default function BookingWizard({ initialService, initialType }) {
+/** A dictionary string with one {placeholder} replaced by a React node (link, <strong> …). */
+function withNode(template, key, node) {
+  const [before, after = ""] = template.split(`{${key}}`);
+  return (
+    <>
+      {before}
+      {node}
+      {after}
+    </>
+  );
+}
+
+export default function BookingWizard({ lang, dict, initialService, initialType }) {
   const c = siteConfig.company;
+  const locale = localeFor(lang);
+  const tx = (value) => t(value, lang);
   const [step, setStep] = useState(() => (initialService ? (initialType ? 2 : 1) : 0));
   const [service, setService] = useState(initialService || "");
   const [typeKey, setTypeKey] = useState(initialType || "");
@@ -45,10 +65,12 @@ export default function BookingWizard({ initialService, initialType }) {
   const calendly = usesCalendly(type);
   const serviceObj = getService(service);
   const onsite = type?.mode === "onsite";
+  const daysError = dict["wizard.daysError"];
+  const timesError = dict["wizard.timesError"];
 
   const labels = calendly
-    ? ["Leistung", "Terminart", "Ihre Angaben", "Termin wählen"]
-    : ["Leistung", "Terminart", "Termin wählen", "Ihre Angaben"];
+    ? [dict["wizard.step.service"], dict["wizard.step.type"], dict["wizard.step.details"], dict["wizard.step.slot"]]
+    : [dict["wizard.step.service"], dict["wizard.step.type"], dict["wizard.step.slot"], dict["wizard.step.details"]];
 
   // Move focus to the step heading when the step changes (keyboard / screen reader users).
   const firstRender = useRef(true);
@@ -75,11 +97,11 @@ export default function BookingWizard({ initialService, initialType }) {
         const first = d.days.find((x) => x.free > 0);
         setDate((cur) => (cur && d.days.some((x) => x.date === cur && x.free > 0) ? cur : first ? first.date : ""));
       })
-      .catch((e) => !stop && setLoadError(e.message || "Termine konnten nicht geladen werden."));
+      .catch(() => !stop && setLoadError(daysError));
     return () => {
       stop = true;
     };
-  }, [type, calendly, step]);
+  }, [type, calendly, step, daysError]);
 
   const loadSlots = useCallback(() => {
     if (!type || !date) return;
@@ -90,8 +112,8 @@ export default function BookingWizard({ initialService, initialType }) {
         if (d.error) throw new Error(d.error);
         setSlots(d.slots);
       })
-      .catch((e) => setLoadError(e.message || "Uhrzeiten konnten nicht geladen werden."));
-  }, [type, date]);
+      .catch(() => setLoadError(timesError));
+  }, [type, date, timesError]);
 
   useEffect(() => {
     if (step === 2 && !calendly) loadSlots();
@@ -104,15 +126,15 @@ export default function BookingWizard({ initialService, initialType }) {
 
   function validateContact() {
     const e = {};
-    if (form.name.trim().length < 2) e.name = "Bitte geben Sie Ihren Namen an.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = "Bitte geben Sie eine gültige E-Mail-Adresse an.";
-    if (form.phone.replace(/\D/g, "").length < 6) e.phone = "Bitte geben Sie eine Telefonnummer an.";
+    if (form.name.trim().length < 2) e.name = dict["error.name"];
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) e.email = dict["error.email"];
+    if (form.phone.replace(/\D/g, "").length < 6) e.phone = dict["error.phone"];
     if (onsite) {
-      if (!form.street.trim()) e.street = "Bitte geben Sie Straße und Hausnummer an.";
-      if (!/^\d{5}$/.test(form.zip.trim())) e.zip = "Bitte geben Sie eine fünfstellige PLZ an.";
-      if (!form.city.trim()) e.city = "Bitte geben Sie den Ort an.";
+      if (!form.street.trim()) e.street = dict["error.street"];
+      if (!/^\d{5}$/.test(form.zip.trim())) e.zip = dict["error.zip"];
+      if (!form.city.trim()) e.city = dict["error.city"];
     }
-    if (!form.consent) e.consent = "Bitte stimmen Sie der Datenverarbeitung zu.";
+    if (!form.consent) e.consent = dict["error.consent"];
     setErrors(e);
     return Object.keys(e).length === 0;
   }
@@ -125,9 +147,9 @@ export default function BookingWizard({ initialService, initialType }) {
       const res = await fetch("/api/bookings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, type: typeKey, service: service || "unsicher", date, time }),
+        body: JSON.stringify({ ...form, type: typeKey, service: service || "unsicher", date, time, lang }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (data.field) setErrors((e) => ({ ...e, [data.field]: data.error }));
         if (res.status === 409) {
@@ -135,12 +157,14 @@ export default function BookingWizard({ initialService, initialType }) {
           setStep(2);
           loadSlots();
         }
-        throw new Error(data.error || "Die Buchung hat nicht geklappt.");
+        // 4xx messages come localised from the API; server errors get the generic text.
+        throw new Error(res.status >= 500 ? dict["error.generic"] : data.error || dict["wizard.submitFailed"]);
       }
       setResult({ ...data.booking, token: data.token });
       setStep(4);
     } catch (e) {
-      setSubmitError(e.message);
+      // fetch() itself rejects with a TypeError (offline etc.) whose text is browser-specific.
+      setSubmitError(e instanceof TypeError ? dict["error.generic"] : e.message);
     } finally {
       setSubmitting(false);
     }
@@ -161,6 +185,7 @@ export default function BookingWizard({ initialService, initialType }) {
           phone: form.phone,
           message: form.message,
           service,
+          lang,
         }),
       });
       const data = await res.json();
@@ -178,7 +203,7 @@ export default function BookingWizard({ initialService, initialType }) {
             email: form.email,
             phone: form.phone,
             message: form.message,
-            service: serviceObj?.name,
+            service: serviceObj ? t(serviceObj.name, lang) : undefined,
           })
         : "",
     // Only rebuild once the contact step is done, not on every keystroke.
@@ -233,42 +258,46 @@ export default function BookingWizard({ initialService, initialType }) {
   function contactFields() {
     return (
       <div className="form-grid">
-        {Field({ name: "name", label: "Vor- und Nachname", autoComplete: "name", full: true })}
-        {Field({ name: "email", label: "E-Mail", type: "email", autoComplete: "email", hint: "Hierhin schicken wir die Bestätigung." })}
-        {Field({ name: "phone", label: "Telefon", type: "tel", autoComplete: "tel", inputMode: "tel", hint: "Falls wir kurzfristig etwas klären müssen." })}
+        {Field({ name: "name", label: dict["field.name"], autoComplete: "name", full: true })}
+        {Field({ name: "email", label: dict["field.email"], type: "email", autoComplete: "email", hint: dict["field.emailHint"] })}
+        {Field({ name: "phone", label: dict["field.phone"], type: "tel", autoComplete: "tel", inputMode: "tel", hint: dict["field.phoneHint"] })}
         {onsite && (
           <>
-            {Field({ name: "street", label: "Straße und Hausnummer", autoComplete: "street-address", full: true })}
-            {Field({ name: "zip", label: "PLZ", autoComplete: "postal-code", inputMode: "numeric" })}
-            {Field({ name: "city", label: "Ort", autoComplete: "address-level2" })}
+            {Field({ name: "street", label: dict["field.street"], autoComplete: "street-address", full: true })}
+            {Field({ name: "zip", label: dict["field.zip"], autoComplete: "postal-code", inputMode: "numeric" })}
+            {Field({ name: "city", label: dict["field.city"], autoComplete: "address-level2" })}
           </>
         )}
         <div className="field">
-          <label htmlFor="f-size">Größe des Bades</label>
+          <label htmlFor="f-size">{dict["field.size"]}</label>
           <select id="f-size" className="select" value={form.bathroomSize} onChange={(e) => update("bathroomSize", e.target.value)}>
-            <option value="">Bitte wählen</option>
-            {SIZES.map((s) => (
-              <option key={s}>{s}</option>
+            <option value="">{dict["field.choose"]}</option>
+            {SIZES.map((k) => (
+              <option key={k} value={k}>
+                {dict[`option.size.${k}`]}
+              </option>
             ))}
           </select>
         </div>
         <div className="field">
-          <label htmlFor="f-time">Wann soll es losgehen?</label>
+          <label htmlFor="f-time">{dict["field.timeframe"]}</label>
           <select id="f-time" className="select" value={form.timeframe} onChange={(e) => update("timeframe", e.target.value)}>
-            <option value="">Bitte wählen</option>
-            {TIMEFRAMES.map((s) => (
-              <option key={s}>{s}</option>
+            <option value="">{dict["field.choose"]}</option>
+            {TIMEFRAMES.map((k) => (
+              <option key={k} value={k}>
+                {dict[`option.timeframe.${k}`]}
+              </option>
             ))}
           </select>
         </div>
         <div className="field full">
-          <label htmlFor="f-msg">Was sollen wir vorab wissen? (optional)</label>
+          <label htmlFor="f-msg">{dict["field.message"]}</label>
           <textarea
             id="f-msg"
             className="textarea"
             value={form.message}
             onChange={(e) => update("message", e.target.value)}
-            placeholder="z. B. Wanne gegen Dusche tauschen, Altbau, 3. OG ohne Aufzug"
+            placeholder={dict["field.messagePlaceholder"]}
           />
         </div>
         <div className="full hp" aria-hidden="true">
@@ -279,11 +308,13 @@ export default function BookingWizard({ initialService, initialType }) {
           <label className="consent">
             <input type="checkbox" checked={form.consent} onChange={(e) => update("consent", e.target.checked)} />
             <span>
-              Ich habe die{" "}
-              <a href={c.privacyUrl} target="_blank" rel="noopener">
-                Datenschutzerklärung
-              </a>{" "}
-              gelesen und stimme zu, dass meine Angaben zur Bearbeitung meiner Anfrage gespeichert werden.
+              {withNode(
+                dict["field.consent"],
+                "link",
+                <a href={c.privacyUrl} target="_blank" rel="noopener">
+                  {dict["field.privacy"]}
+                </a>
+              )}
             </span>
           </label>
           {errors.consent && <span className="field-error">{errors.consent}</span>}
@@ -299,7 +330,7 @@ export default function BookingWizard({ initialService, initialType }) {
   if (step === 0) {
     body = (
       <>
-        {heading("Worum geht es?", "Wählen Sie die Leistung, die Sie interessiert. Unsicher? Kein Problem – wir beraten Sie.")}
+        {heading(dict["wizard.serviceTitle"], dict["wizard.serviceSub"])}
         <div className="choice-grid">
           {siteConfig.services.map((s) => (
             <button
@@ -312,8 +343,8 @@ export default function BookingWizard({ initialService, initialType }) {
                 setStep(typeKey ? 2 : 1);
               }}
             >
-              <strong>{s.name}</strong>
-              <span>{s.short}</span>
+              <strong>{tx(s.name)}</strong>
+              <span>{tx(s.short)}</span>
             </button>
           ))}
           <button
@@ -325,8 +356,8 @@ export default function BookingWizard({ initialService, initialType }) {
               setStep(typeKey ? 2 : 1);
             }}
           >
-            <strong>Noch unsicher</strong>
-            <span>Wir finden gemeinsam heraus, was Ihr Bad braucht.</span>
+            <strong>{dict["booking.unsure"]}</strong>
+            <span>{dict["wizard.unsureText"]}</span>
           </button>
         </div>
       </>
@@ -336,31 +367,31 @@ export default function BookingWizard({ initialService, initialType }) {
   if (step === 1) {
     body = (
       <>
-        {heading("Wie möchten Sie starten?", "Beide Termine sind kostenlos und unverbindlich.")}
+        {heading(dict["wizard.typeTitle"], dict["wizard.typeSub"])}
         <div className="choice-grid">
-          {siteConfig.bookingTypes.map((t) => (
+          {siteConfig.bookingTypes.map((bt) => (
             <button
-              key={t.key}
+              key={bt.key}
               type="button"
               className="choice"
-              aria-pressed={typeKey === t.key}
+              aria-pressed={typeKey === bt.key}
               onClick={() => {
-                setTypeKey(t.key);
+                setTypeKey(bt.key);
                 setTime("");
                 setStep(2);
               }}
             >
-              <strong>{t.name}</strong>
-              <span>{t.description}</span>
+              <strong>{tx(bt.name)}</strong>
+              <span>{tx(bt.description)}</span>
               <span className="tag">
-                {t.durationMinutes} Min. · {t.price}
+                {formatDuration(bt.durationMinutes, lang, "short")} · {tx(bt.price)}
               </span>
             </button>
           ))}
         </div>
         <div className="wizard-nav">
           <button type="button" className="btn btn-ghost" onClick={() => setStep(0)}>
-            Zurück
+            {dict["wizard.back"]}
           </button>
         </div>
       </>
@@ -370,22 +401,26 @@ export default function BookingWizard({ initialService, initialType }) {
   if (step === 2 && !calendly && type) {
     body = (
       <>
-        {heading("Wann passt es Ihnen?", `${type.name}, ${type.durationMinutes} Minuten. Angezeigt werden alle freien Termine der nächsten vier Wochen.`)}
+        {heading(
+          dict["wizard.slotTitle"],
+          fill(dict["wizard.slotSub"], { type: tx(type.name), duration: formatDuration(type.durationMinutes, lang) })
+        )}
         {loadError && (
           <p className="alert" role="alert">
             {loadError}
           </p>
         )}
-        {!days && !loadError && <p className="loading">Freie Termine werden geladen …</p>}
+        {!days && !loadError && <p className="loading">{dict["wizard.loadingDays"]}</p>}
         {days && (
           <>
             <div className="label" id="day-label" style={{ fontWeight: 600, marginBottom: 8 }}>
-              Tag
+              {dict["wizard.day"]}
             </div>
             <div className="days" role="group" aria-labelledby="day-label">
               {days.map((d) => {
-                const p = dayParts(d.date, siteConfig.locale);
+                const p = dayParts(d.date, locale);
                 const disabled = d.free === 0;
+                const longDate = formatDate(d.date, lang);
                 return (
                   <button
                     key={d.date}
@@ -393,7 +428,9 @@ export default function BookingWizard({ initialService, initialType }) {
                     className="day"
                     disabled={disabled}
                     aria-pressed={date === d.date}
-                    aria-label={`${formatDateLong(d.date, siteConfig.locale)}, ${disabled ? "keine freien Termine" : `${d.free} freie Termine`}`}
+                    aria-label={
+                      disabled ? fill(dict["wizard.dayFull"], { date: longDate }) : fill(dict["wizard.dayFree"], { date: longDate, count: d.free })
+                    }
                     onClick={() => {
                       setDate(d.date);
                       setTime("");
@@ -402,37 +439,40 @@ export default function BookingWizard({ initialService, initialType }) {
                     <small>{p.weekday}</small>
                     <strong>{p.day}</strong>
                     <small>{p.month}</small>
-                    {!disabled && <span className="free">{d.free} frei</span>}
+                    {!disabled && <span className="free">{fill(dict["wizard.freeBadge"], { count: d.free })}</span>}
                   </button>
                 );
               })}
             </div>
             {days.every((d) => d.free === 0) ? (
               <p className="notice">
-                In den nächsten vier Wochen ist leider nichts mehr frei. Rufen Sie uns an: <a href={`tel:${c.phoneHref}`}>{c.phone}</a>
+                {dict["wizard.fullyBooked"]} <a href={`tel:${c.phoneHref}`}>{c.phone}</a>
               </p>
             ) : (
               date && (
                 <>
                   <div className="label" id="time-label" style={{ fontWeight: 600, margin: "8px 0" }}>
-                    Uhrzeit am {formatDateLong(date, siteConfig.locale)}
+                    {fill(dict["wizard.timeOn"], { date: formatDate(date, lang) })}
                   </div>
-                  {!slots && <p className="loading">Uhrzeiten werden geladen …</p>}
+                  {!slots && <p className="loading">{dict["wizard.loadingTimes"]}</p>}
                   {slots && (
                     <div className="times" role="group" aria-labelledby="time-label">
-                      {slots.map((s) => (
-                        <button
-                          key={s.time}
-                          type="button"
-                          className="time"
-                          disabled={!s.available}
-                          aria-pressed={time === s.time}
-                          aria-label={`${s.time} Uhr${s.available ? "" : ", belegt"}`}
-                          onClick={() => setTime(s.time)}
-                        >
-                          {s.time}
-                        </button>
-                      ))}
+                      {slots.map((s) => {
+                        const clock = formatClock(dict, lang, date, s.time);
+                        return (
+                          <button
+                            key={s.time}
+                            type="button"
+                            className="time"
+                            disabled={!s.available}
+                            aria-pressed={time === s.time}
+                            aria-label={s.available ? clock : fill(dict["wizard.timeTaken"], { time: clock })}
+                            onClick={() => setTime(s.time)}
+                          >
+                            {s.time}
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </>
@@ -442,10 +482,10 @@ export default function BookingWizard({ initialService, initialType }) {
         )}
         <div className="wizard-nav">
           <button type="button" className="btn btn-ghost" onClick={() => setStep(1)}>
-            Zurück
+            {dict["wizard.back"]}
           </button>
           <button type="button" className="btn" disabled={!date || !time} onClick={() => setStep(3)}>
-            Weiter zu Ihren Angaben
+            {dict["wizard.toDetails"]}
           </button>
         </div>
       </>
@@ -456,11 +496,10 @@ export default function BookingWizard({ initialService, initialType }) {
     const finalStep = !calendly;
     body = (
       <>
-        {heading("Ihre Angaben", finalStep
-              ? onsite
-                ? "Wir kommen zu Ihnen. Die Adresse brauchen wir für die Anfahrt."
-                : "Den Link zur Video-Beratung schicken wir Ihnen und uns per E-Mail."
-              : "Im nächsten Schritt wählen Sie Ihren Termin. Ihre Angaben sind dort schon eingetragen.")}
+        {heading(
+          dict["wizard.detailsTitle"],
+          finalStep ? (onsite ? dict["wizard.detailsOnsite"] : dict["wizard.detailsCall"]) : dict["wizard.detailsCalendly"]
+        )}
         {contactFields()}
         {submitError && (
           <p className="alert" role="alert" style={{ marginTop: 18 }}>
@@ -469,15 +508,15 @@ export default function BookingWizard({ initialService, initialType }) {
         )}
         <div className="wizard-nav">
           <button type="button" className="btn btn-ghost" onClick={() => setStep(finalStep ? 2 : 1)}>
-            Zurück
+            {dict["wizard.back"]}
           </button>
           {finalStep ? (
             <button type="button" className="btn" disabled={submitting} onClick={submit}>
-              {submitting ? "Wird gebucht …" : onsite ? "Besichtigung anfragen" : "Video-Beratung buchen"}
+              {submitting ? dict["wizard.submitting"] : onsite ? dict["wizard.submitOnsite"] : dict["wizard.submitCall"]}
             </button>
           ) : (
             <button type="button" className="btn" onClick={() => validateContact() && setStep(3)}>
-              Weiter zur Terminauswahl
+              {dict["wizard.toCalendly"]}
             </button>
           )}
         </div>
@@ -488,11 +527,15 @@ export default function BookingWizard({ initialService, initialType }) {
   if (step === 3 && calendly) {
     body = (
       <>
-        {heading("Termin wählen", "Wählen Sie einen freien Termin. Die Bestätigung mit dem Meeting-Link bekommen Sie und wir automatisch per E-Mail.")}
-        <CalendlyEmbed url={calendlyUrl} onScheduled={onCalendlyScheduled} />
+        {heading(dict["wizard.calendlyTitle"], dict["wizard.calendlySub"])}
+        <CalendlyEmbed
+          url={calendlyUrl}
+          onScheduled={onCalendlyScheduled}
+          labels={{ loadError: dict["calendly.loadError"], frame: dict["calendly.frame"] }}
+        />
         <div className="wizard-nav">
           <button type="button" className="btn btn-ghost" onClick={() => setStep(2)}>
-            Zurück
+            {dict["wizard.back"]}
           </button>
         </div>
       </>
@@ -509,29 +552,24 @@ export default function BookingWizard({ initialService, initialType }) {
             <span />
             <span />
           </div>
-          {heading("Ihre Video-Beratung ist gebucht")}
-          <p>
-            Calendly hat Ihnen gerade eine Bestätigung mit dem Meeting-Link an <strong>{form.email}</strong> geschickt. Wir haben
-            dieselbe Einladung erhalten.
-          </p>
+          {heading(dict["done.callBooked"])}
+          <p>{withNode(dict["done.calendlyText"], "email", <strong>{form.email}</strong>)}</p>
           <dl className="kv">
             {result.ref && (
               <>
-                <dt>Buchungsnummer</dt>
+                <dt>{dict["booking.ref"]}</dt>
                 <dd>{result.ref}</dd>
               </>
             )}
             {result.date && (
               <>
-                <dt>Termin</dt>
-                <dd>
-                  {formatDateLong(result.date, siteConfig.locale)}, {result.time} Uhr
-                </dd>
+                <dt>{dict["booking.when"]}</dt>
+                <dd>{formatDateTime(dict, lang, result.date, result.time)}</dd>
               </>
             )}
             {result.meetingUrl && (
               <>
-                <dt>Meeting-Link</dt>
+                <dt>{dict["booking.meetingLink"]}</dt>
                 <dd>
                   <a href={result.meetingUrl} target="_blank" rel="noopener">
                     {result.meetingUrl}
@@ -540,17 +578,23 @@ export default function BookingWizard({ initialService, initialType }) {
               </>
             )}
           </dl>
-          {result.pending && <p className="loading">Buchung wird gespeichert …</p>}
+          {result.pending && <p className="loading">{dict["done.saving"]}</p>}
           <div className="actions">
-            <Link href="/" className="btn btn-ghost">
-              Zur Startseite
+            <Link href={withLang(lang, "/")} className="btn btn-ghost">
+              {dict["cta.home"]}
             </Link>
           </div>
         </>
       );
     } else {
       const confirmed = result.status === "confirmed";
-      const manage = `/buchung/${result.id}?t=${result.token}`;
+      const manage = withLang(lang, `/buchung/${result.id}?t=${result.token}`);
+      const title = confirmed ? (result.meetingUrl ? dict["done.callBooked"] : dict["done.booked"]) : dict["done.requested"];
+      const text = confirmed
+        ? result.meetingUrl
+          ? dict["done.confirmedCallText"]
+          : dict["done.confirmedText"]
+        : dict["done.requestedText"];
       body = (
         <>
           <div className="done-mark" aria-hidden="true">
@@ -559,24 +603,18 @@ export default function BookingWizard({ initialService, initialType }) {
             <span />
             <span />
           </div>
-          {heading(confirmed ? (result.meetingUrl ? "Ihre Video-Beratung ist gebucht" : "Ihr Termin ist gebucht") : "Ihre Anfrage ist eingegangen")}
-          <p>
-            {confirmed
-              ? `Wir haben Ihnen eine Bestätigung an ${form.email} geschickt${result.meetingUrl ? " – mit dem Link zum Gespräch. Wir haben denselben Link erhalten." : "."}`
-              : `Wir prüfen den Termin und bestätigen ihn in der Regel innerhalb eines Werktags per E-Mail an ${form.email}.`}
-          </p>
+          {heading(title)}
+          <p>{fill(text, { email: form.email })}</p>
           <dl className="kv">
-            <dt>Buchungsnummer</dt>
+            <dt>{dict["booking.ref"]}</dt>
             <dd>{result.ref}</dd>
-            <dt>Termin</dt>
-            <dd>
-              {formatDateLong(result.date, siteConfig.locale)}, {result.time} Uhr
-            </dd>
-            <dt>Art</dt>
-            <dd>{type?.name}</dd>
+            <dt>{dict["booking.when"]}</dt>
+            <dd>{formatDateTime(dict, lang, result.date, result.time)}</dd>
+            <dt>{dict["booking.kind"]}</dt>
+            <dd>{tx(type?.name)}</dd>
             {result.meetingUrl && (
               <>
-                <dt>Video-Link</dt>
+                <dt>{dict["booking.videoLink"]}</dt>
                 <dd>
                   <a href={result.meetingUrl} target="_blank" rel="noopener">
                     {result.meetingUrl}
@@ -587,10 +625,10 @@ export default function BookingWizard({ initialService, initialType }) {
           </dl>
           <div className="actions">
             <a href={`/api/bookings/${result.id}/ics?t=${result.token}`} className="btn">
-              Zum Kalender hinzufügen
+              {dict["booking.addToCalendar"]}
             </a>
             <Link href={manage} className="btn btn-ghost">
-              Buchung verwalten
+              {dict["booking.manage"]}
             </Link>
           </div>
         </>
@@ -602,7 +640,7 @@ export default function BookingWizard({ initialService, initialType }) {
     <div className="booking wrap">
       <div>
         {step < 4 && (
-          <ol className="steps" aria-label="Fortschritt">
+          <ol className="steps" aria-label={dict["wizard.progress"]}>
             {labels.map((l, i) => (
               <li key={l} data-state={stepState(i)} aria-current={i === step ? "step" : undefined}>
                 <span>{l}</span>
@@ -613,28 +651,28 @@ export default function BookingWizard({ initialService, initialType }) {
         <div className="panel">{body}</div>
       </div>
 
-      <aside className="summary" aria-label="Ihre Auswahl">
-        <h2>Ihre Auswahl</h2>
+      <aside className="summary" aria-label={dict["wizard.summary"]}>
+        <h2>{dict["wizard.summary"]}</h2>
         <dl>
           <div>
-            <dt>Leistung</dt>
-            <dd>{serviceObj ? serviceObj.name : service === "unsicher" ? "Noch unsicher" : "–"}</dd>
+            <dt>{dict["booking.service"]}</dt>
+            <dd>{serviceObj ? tx(serviceObj.name) : service === "unsicher" ? dict["booking.unsure"] : "–"}</dd>
           </div>
           <div>
-            <dt>Terminart</dt>
-            <dd>{type ? `${type.name} (${type.durationMinutes} Min.)` : "–"}</dd>
+            <dt>{dict["booking.type"]}</dt>
+            <dd>{type ? `${tx(type.name)} (${formatDuration(type.durationMinutes, lang, "short")})` : "–"}</dd>
           </div>
           {!calendly && (
             <div>
-              <dt>Termin</dt>
-              <dd>{date && time ? `${formatDateLong(date, siteConfig.locale)}, ${time} Uhr` : "–"}</dd>
+              <dt>{dict["booking.when"]}</dt>
+              <dd>{date && time ? formatDateTime(dict, lang, date, time) : "–"}</dd>
             </div>
           )}
         </dl>
         <p className="help">
-          Lieber telefonisch? <a href={`tel:${c.phoneHref}`}>{c.phone}</a>
+          {dict["wizard.byPhone"]} <a href={`tel:${c.phoneHref}`}>{c.phone}</a>
           <br />
-          {c.openingHours}
+          {tx(c.openingHours)}
         </p>
       </aside>
     </div>
