@@ -1,0 +1,22 @@
+{
+  "name": "handwerker-prototype",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Config-driven website + booking prototype for Handwerksbetriebe (first config: Badsanierung Berlin).",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "test": "node --test tests/*.test.js",
+    "calendly:webhook": "node scripts/calendly-webhook.mjs"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "next": "^16.0.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}
