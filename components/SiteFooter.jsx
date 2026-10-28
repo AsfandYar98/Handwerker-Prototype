@@ -33,6 +33,7 @@ export default function SiteFooter() {
           ))}
           <Link href="/admin">Login für Mitarbeiter</Link>
         </div>
+        {siteConfig.demo.enabled && <p className="footer-demo">Prototyp-Version</p>}
       </div>
     </footer>
   );

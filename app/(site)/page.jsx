@@ -33,20 +33,24 @@ export default function HomePage() {
 
           <div className="hero-panel">
             <Photo src={h.image} alt={h.imageAlt} className="hero-photo" />
-            <div className="quickstart">
-              <h2>Was planen Sie?</h2>
-              <ul>
-                {siteConfig.services.map((s) => (
-                  <li key={s.slug}>
-                    <Link href={`/termin?leistung=${s.slug}`}>
-                      <span>{s.name}</span>
-                      <span aria-hidden="true">›</span>
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
           </div>
+        </div>
+      </section>
+
+      {/* Quick start: one tile per service, straight into the booking flow */}
+      <section className="section quickstart-section" aria-labelledby="quickstart-title">
+        <div className="wrap">
+          <h2 id="quickstart-title">Was planen Sie?</h2>
+          <ul className="quickstart plain-list">
+            {siteConfig.services.map((s) => (
+              <li key={s.slug}>
+                <Link href={`/termin?leistung=${s.slug}`}>
+                  <span>{s.name}</span>
+                  <span aria-hidden="true">›</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       </section>
 

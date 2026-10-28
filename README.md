@@ -14,7 +14,7 @@ A config-driven website + booking system for trade businesses (Handwerksbetriebe
 | Meeting link to both parties | Video calls get a meeting link that is emailed to the customer **and** the company. Either via **Calendly** (Calendly sends Zoom/Meet/Teams link to both) or, without Calendly, an automatic Jitsi link sent by the app |
 | Customer self-service | Confirmation email with `.ics` calendar file and a private link (`/buchung/<id>?t=…`) to view or cancel |
 | Admin dashboard (`/admin`) | Open requests / upcoming / past / cancelled, search, confirm/cancel/done (customer is emailed automatically), internal notes, closed days (holidays), setup checklist |
-| Demo safety | While `NEXT_PUBLIC_DEMO_MODE` isn't `false`: "Prototyp" banner, `noindex`, and company notifications go **only** to `NOTIFY_EMAIL` – never to the real company address |
+| Demo safety | While `NEXT_PUBLIC_DEMO_MODE` isn't `false`: small "Prototyp-Version" line in the footer, `noindex`, and company notifications go **only** to `NOTIFY_EMAIL` – never to the real company address |
 
 Stack: Next.js (App Router), plain CSS, no other dependencies. Optional services: Upstash Redis (storage), Resend (email), Calendly.
 

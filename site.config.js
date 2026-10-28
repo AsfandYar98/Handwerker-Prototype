@@ -19,14 +19,12 @@ export const siteConfig = {
   timezone: "Europe/Berlin",
 
   /**
-   * Demo mode: shows a "Prototyp" banner, sets noindex, and never sends
-   * notifications to the real company address (only to NOTIFY_EMAIL).
-   * Set NEXT_PUBLIC_DEMO_MODE=false once the company has signed off.
+   * Demo mode: shows a small "Prototyp-Version" line in the footer, sets
+   * noindex, and never sends notifications to the real company address (only
+   * to NOTIFY_EMAIL). Set NEXT_PUBLIC_DEMO_MODE=false once the company has signed off.
    */
   demo: {
     enabled: process.env.NEXT_PUBLIC_DEMO_MODE !== "false",
-    bannerText:
-      "Prototyp – Buchungen auf dieser Seite sind Testdaten und werden nicht an den Betrieb weitergeleitet.",
   },
 
   company: {

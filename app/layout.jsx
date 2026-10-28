@@ -32,14 +32,7 @@ export default function RootLayout({ children }) {
   };
   return (
     <html lang={siteConfig.locale.slice(0, 2)} className={archivo.variable} style={themeVars}>
-      <body>
-        {siteConfig.demo.enabled && (
-          <div className="demo-banner" role="note">
-            {siteConfig.demo.bannerText}
-          </div>
-        )}
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
