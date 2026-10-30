@@ -14,7 +14,7 @@ A config-driven website + booking system for trade businesses (Handwerksbetriebe
 | Two appointment types | **Besichtigung vor Ort** (on-site, needs address, confirmed by the company) and **Video-Beratung** (auto-confirmed) |
 | Meeting link to both parties | Video calls get a meeting link that is emailed to the customer **and** the company. Either via **Calendly** (Calendly sends Zoom/Meet/Teams link to both) or, without Calendly, an automatic Jitsi link sent by the app |
 | Customer self-service | Confirmation email with `.ics` calendar file and a private link (`/<lang>/buchung/<id>?t=…`) to view or cancel |
-| Admin dashboard (`/admin`) | Open requests / upcoming / past / cancelled, search, confirm/cancel/done (customer is emailed automatically), internal notes, closed days (holidays), setup checklist |
+| Admin dashboard (`/admin`) | Open requests / upcoming / past / cancelled, search, confirm/cancel/done (customer is emailed automatically), internal notes, closed days (holidays), setup checklist (`/admin?setup=1`) |
 | Demo safety | While `NEXT_PUBLIC_DEMO_MODE` isn't `false`: small "Prototyp-Version" line in the footer, `noindex`, and company notifications go **only** to `NOTIFY_EMAIL` – never to the real company address |
 
 Stack: Next.js (App Router), plain CSS, no other dependencies. Optional services: Upstash Redis (storage), Resend (email), Calendly.
@@ -69,7 +69,7 @@ Create the empty repo on GitHub first (no README/licence, so the push isn't reje
 
 ## Demo admin
 
-While demo mode is on, `/admin` is open, whether or not `ADMIN_PASSWORD` is set: no login, and anyone with the URL can view and change bookings. Customer contacts are masked in that view (email `j…@example.com`, phone `015…893`, street hidden; ZIP and city stay), while stored bookings, emails and the customer's `.ics` keep the real data. To lock it, set `NEXT_PUBLIC_DEMO_MODE=false` and redeploy; then `ADMIN_PASSWORD` applies and sessions from the demo phase end. This also switches off the other demo safeguards (see *Demo safety* above), so company notifications start going to the real company address.
+While demo mode is on, `/admin` is open, whether or not `ADMIN_PASSWORD` is set: no login, and anyone with the URL can view and change bookings. Customer details are masked in that view (name `Jana B.`, email `j…@example.com`, phone `015…893`, street hidden; ZIP and city stay), while stored bookings, emails and the customer's `.ics` keep the real data. To lock it, set `NEXT_PUBLIC_DEMO_MODE=false` and redeploy; then `ADMIN_PASSWORD` applies and sessions from the demo phase end. This also switches off the other demo safeguards (see *Demo safety* above), so company notifications start going to the real company address.
 
 ## Calendly setup (optional)
 

@@ -10,18 +10,23 @@ import AdminDashboard from "@/components/AdminDashboard";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Dashboard", robots: { index: false, follow: false } };
 
-export default async function AdminPage() {
+export default async function AdminPage({ searchParams }) {
   if (!(await isAdmin())) redirect("/admin/login");
 
-  const setup = {
-    storage: storageMode,
-    mail: mailConfigured,
-    notifyTo: companyRecipients(),
-    calendlyUrl: siteConfig.calendly.url,
-    calendlyToken: calendlyTokenConfigured,
-    calendlyWebhook: calendlyWebhookConfigured,
-    demo: siteConfig.demo.enabled,
-  };
+  // The setup checklist is for the operator, not for prospects: only built and sent with /admin?setup=1.
+  const { setup: showSetup } = await searchParams;
+  const setup =
+    showSetup === "1"
+      ? {
+          storage: storageMode,
+          mail: mailConfigured,
+          notifyTo: companyRecipients(),
+          calendlyUrl: siteConfig.calendly.url,
+          calendlyToken: calendlyTokenConfigured,
+          calendlyWebhook: calendlyWebhookConfigured,
+          demo: siteConfig.demo.enabled,
+        }
+      : null;
 
   return <AdminDashboard setup={setup} openDemo={isOpenDemoAdmin()} />;
 }

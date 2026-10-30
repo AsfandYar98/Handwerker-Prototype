@@ -466,52 +466,54 @@ export default function AdminDashboard({ setup, openDemo }) {
               )}
             </div>
 
-            <div className="side-card">
-              <h2>Einrichtung</h2>
-              <ul className="setup-list">
-                <li>
-                  <span className={`dot ${setup.storage === "redis" ? "on" : "warn"}`} />
-                  <span>
-                    {setup.storage === "redis"
-                      ? "Datenbank verbunden (Redis)."
-                      : "Ohne Datenbank: Buchungen gehen beim nächsten Neustart verloren. Upstash Redis in Vercel verbinden."}
-                  </span>
-                </li>
-                <li>
-                  <span className={`dot ${setup.mail ? "on" : "warn"}`} />
-                  <span>
-                    {setup.mail
-                      ? `E-Mail-Versand aktiv. Benachrichtigungen an: ${setup.notifyTo.length ? setup.notifyTo.join(", ") : "niemanden (NOTIFY_EMAIL setzen)"}.`
-                      : "E-Mail-Versand aus: RESEND_API_KEY setzen, damit Kunde und Betrieb Bestätigungen und Video-Links bekommen."}
-                  </span>
-                </li>
-                <li>
-                  <span className={`dot ${setup.calendlyUrl ? "on" : ""}`} />
-                  <span>
-                    {setup.calendlyUrl
-                      ? "Video-Beratung läuft über Calendly. Calendly verschickt Bestätigung und Meeting-Link an beide Seiten."
-                      : "Video-Beratung über eigenen Kalender mit Jitsi-Link. Für Calendly NEXT_PUBLIC_CALENDLY_URL setzen."}
-                  </span>
-                </li>
-                {setup.calendlyUrl && (
+            {setup && (
+              <div className="side-card">
+                <h2>Einrichtung</h2>
+                <ul className="setup-list">
                   <li>
-                    <span className={`dot ${setup.calendlyToken && setup.calendlyWebhook ? "on" : "warn"}`} />
+                    <span className={`dot ${setup.storage === "redis" ? "on" : "warn"}`} />
                     <span>
-                      {setup.calendlyToken ? "Calendly-API verbunden" : "CALENDLY_TOKEN fehlt (Uhrzeit/Link werden nicht übernommen)"}
-                      {setup.calendlyWebhook ? ", Webhook aktiv." : ", Webhook nicht eingerichtet (Absagen in Calendly kommen nicht an)."}
+                      {setup.storage === "redis"
+                        ? "Datenbank verbunden (Redis)."
+                        : "Ohne Datenbank: Buchungen gehen beim nächsten Neustart verloren. Upstash Redis in Vercel verbinden."}
                     </span>
                   </li>
-                )}
-                <li>
-                  <span className={`dot ${openDemo ? "warn" : "on"}`} />
-                  <span>
-                    {openDemo
-                      ? "Demo-Modus: Dashboard ohne Login offen (Kontaktdaten maskiert). Zum Sperren NEXT_PUBLIC_DEMO_MODE=false setzen, dann gilt ADMIN_PASSWORD."
-                      : "Eigenes Admin-Passwort gesetzt."}
-                  </span>
-                </li>
-              </ul>
-            </div>
+                  <li>
+                    <span className={`dot ${setup.mail ? "on" : "warn"}`} />
+                    <span>
+                      {setup.mail
+                        ? `E-Mail-Versand aktiv. Benachrichtigungen an: ${setup.notifyTo.length ? setup.notifyTo.join(", ") : "niemanden (NOTIFY_EMAIL setzen)"}.`
+                        : "E-Mail-Versand aus: RESEND_API_KEY setzen, damit Kunde und Betrieb Bestätigungen und Video-Links bekommen."}
+                    </span>
+                  </li>
+                  <li>
+                    <span className={`dot ${setup.calendlyUrl ? "on" : ""}`} />
+                    <span>
+                      {setup.calendlyUrl
+                        ? "Video-Beratung läuft über Calendly. Calendly verschickt Bestätigung und Meeting-Link an beide Seiten."
+                        : "Video-Beratung über eigenen Kalender mit Jitsi-Link. Für Calendly NEXT_PUBLIC_CALENDLY_URL setzen."}
+                    </span>
+                  </li>
+                  {setup.calendlyUrl && (
+                    <li>
+                      <span className={`dot ${setup.calendlyToken && setup.calendlyWebhook ? "on" : "warn"}`} />
+                      <span>
+                        {setup.calendlyToken ? "Calendly-API verbunden" : "CALENDLY_TOKEN fehlt (Uhrzeit/Link werden nicht übernommen)"}
+                        {setup.calendlyWebhook ? ", Webhook aktiv." : ", Webhook nicht eingerichtet (Absagen in Calendly kommen nicht an)."}
+                      </span>
+                    </li>
+                  )}
+                  <li>
+                    <span className={`dot ${openDemo ? "warn" : "on"}`} />
+                    <span>
+                      {openDemo
+                        ? "Demo-Modus: Dashboard ohne Login offen (Kontaktdaten maskiert). Zum Sperren NEXT_PUBLIC_DEMO_MODE=false setzen, dann gilt ADMIN_PASSWORD."
+                        : "Eigenes Admin-Passwort gesetzt."}
+                    </span>
+                  </li>
+                </ul>
+              </div>
+            )}
           </aside>
         </div>
       </div>

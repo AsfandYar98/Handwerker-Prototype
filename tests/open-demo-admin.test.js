@@ -12,7 +12,7 @@ const bookingRoute = await import("../app/api/admin/bookings/[id]/route.js");
 const blockedRoute = await import("../app/api/admin/blocked/route.js");
 const { setRequestCookies } = await import("./helpers/next-headers.js");
 const { ADMIN_COOKIE, adminSessionValue, isOpenDemoAdmin } = await import("../lib/auth.js");
-const { adminBooking, maskEmail, maskPhone, STREET_HIDDEN } = await import("../lib/demo-mask.js");
+const { adminBooking, maskEmail, maskName, maskPhone, STREET_HIDDEN } = await import("../lib/demo-mask.js");
 const { saveBooking } = await import("../lib/store.js");
 const { siteConfig } = await import("../site.config.js");
 
@@ -76,7 +76,10 @@ for (const password of [undefined, "s3cret"]) {
     // Contacts leave the API masked, so the open view never receives the real values.
     const { bookings } = await (await bookingsRoute.GET()).json();
     const c = bookings.find((b) => b.id === fixture.id).customer;
-    assert.deepEqual([c.email, c.phone, c.street, c.zip, c.city], ["j…@example.com", "015…893", STREET_HIDDEN, "10115", "Berlin"]);
+    assert.deepEqual(
+      [c.name, c.email, c.phone, c.street, c.zip, c.city],
+      ["Jana M.", "j…@example.com", "015…893", STREET_HIDDEN, "10115", "Berlin"]
+    );
     const { booking } = await (await calls["PATCH booking"]()).json();
     assert.equal(booking.customer.email, "j…@example.com");
   });
@@ -126,6 +129,14 @@ test("open demo admin: masking helpers produce the documented formats", () => {
   assert.equal(maskPhone("123456"), "…"); // first 3 + last 3 would show every digit
 });
 
+test("open demo admin: names become first name plus surname initial", () => {
+  assert.equal(maskName("Jana Beispiel"), "Jana B.");
+  assert.equal(maskName("  Anna Maria  von Berg "), "Anna B.");
+  assert.equal(maskName("Jürgen Müller-Lüdenscheidt"), "Jürgen M.");
+  assert.equal(maskName("Ola özdemir"), "Ola Ö.");
+  assert.equal(maskName("Jana"), "Jana"); // no surname to shorten
+});
+
 test("open demo admin: adminBooking masks in demo mode only and never alters the stored booking", (t) => {
   const original = structuredClone(fixture);
   withDemoMode(t, true);
@@ -134,7 +145,7 @@ test("open demo admin: adminBooking masks in demo mode only and never alters the
   assert.equal(masked.customer.email, "j…@example.com");
   assert.equal(masked.customer.phone, "015…893");
   assert.equal(masked.customer.street, STREET_HIDDEN);
-  assert.equal(masked.customer.name, "Jana Muster");
+  assert.equal(masked.customer.name, "Jana M.");
   assert.deepEqual(masked.details.answers, [
     { question: "Telefon", answer: "493…567" },
     { question: "Worum geht es?", answer: "Dusche" },
