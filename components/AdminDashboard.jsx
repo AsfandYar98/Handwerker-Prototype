@@ -43,7 +43,8 @@ function inTab(b, tab, now) {
   }
 }
 
-export default function AdminDashboard({ setup }) {
+// openDemo: open demo view (no login, contacts arrive masked from the API).
+export default function AdminDashboard({ setup, openDemo }) {
   const [bookings, setBookings] = useState(null);
   const [blocked, setBlocked] = useState([]);
   const [error, setError] = useState("");
@@ -182,17 +183,21 @@ export default function AdminDashboard({ setup }) {
           )}
           <dt>Kontakt</dt>
           <dd>
-            {cust.phone && <a href={`tel:${cust.phone.replace(/[^\d+]/g, "")}`}>{cust.phone}</a>}
+            {cust.phone && (openDemo ? cust.phone : <a href={`tel:${cust.phone.replace(/[^\d+]/g, "")}`}>{cust.phone}</a>)}
             {cust.phone && cust.email && " · "}
-            {cust.email && <a href={`mailto:${cust.email}`}>{cust.email}</a>}
+            {cust.email && (openDemo ? cust.email : <a href={`mailto:${cust.email}`}>{cust.email}</a>)}
           </dd>
           {address && (
             <>
               <dt>Adresse</dt>
               <dd>
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener">
-                  {address}
-                </a>
+                {openDemo ? (
+                  address
+                ) : (
+                  <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noopener">
+                    {address}
+                  </a>
+                )}
               </dd>
             </>
           )}
@@ -313,10 +318,13 @@ export default function AdminDashboard({ setup }) {
         <div className="wrap">
           <strong>{siteConfig.company.brand} – Dashboard</strong>
           <span style={{ display: "flex", gap: 18, alignItems: "center" }}>
+            {openDemo && <span className="admin-badge">Demo-Ansicht</span>}
             <Link href={withLang("de", "/")}>Zur Website</Link>
-            <button type="button" className="link-btn" onClick={logout}>
-              Abmelden
-            </button>
+            {!openDemo && (
+              <button type="button" className="link-btn" onClick={logout}>
+                Abmelden
+              </button>
+            )}
           </span>
         </div>
       </div>
@@ -495,8 +503,12 @@ export default function AdminDashboard({ setup }) {
                   </li>
                 )}
                 <li>
-                  <span className={`dot ${setup.demoPassword ? "warn" : "on"}`} />
-                  <span>{setup.demoPassword ? "Demo-Passwort aktiv. ADMIN_PASSWORD setzen." : "Eigenes Admin-Passwort gesetzt."}</span>
+                  <span className={`dot ${openDemo ? "warn" : "on"}`} />
+                  <span>
+                    {openDemo
+                      ? "Dashboard ohne Login offen (Kontaktdaten maskiert). ADMIN_PASSWORD setzen, um es zu sperren."
+                      : "Eigenes Admin-Passwort gesetzt."}
+                  </span>
                 </li>
               </ul>
             </div>

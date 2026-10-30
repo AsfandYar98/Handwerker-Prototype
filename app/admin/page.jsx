@@ -4,7 +4,7 @@ import { isAdmin } from "@/lib/admin-session";
 import { storageMode } from "@/lib/store";
 import { mailConfigured, companyRecipients } from "@/lib/mail";
 import { calendlyTokenConfigured, calendlyWebhookConfigured } from "@/lib/calendly";
-import { usingDemoPassword } from "@/lib/auth";
+import { isOpenDemoAdmin } from "@/lib/auth";
 import AdminDashboard from "@/components/AdminDashboard";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +20,8 @@ export default async function AdminPage() {
     calendlyUrl: siteConfig.calendly.url,
     calendlyToken: calendlyTokenConfigured,
     calendlyWebhook: calendlyWebhookConfigured,
-    demoPassword: usingDemoPassword(),
     demo: siteConfig.demo.enabled,
   };
 
-  return <AdminDashboard setup={setup} />;
+  return <AdminDashboard setup={setup} openDemo={isOpenDemoAdmin()} />;
 }
