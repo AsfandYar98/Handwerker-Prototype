@@ -45,6 +45,13 @@ function withEnv(t, vars) {
   t.after(() => apply(saved));
 }
 
+/** Demo mode for one test. NEXT_PUBLIC_DEMO_MODE is read once into siteConfig (and inlined at build time), so toggle the config. */
+function withDemoMode(t, enabled) {
+  const saved = siteConfig.demo.enabled;
+  siteConfig.demo.enabled = enabled;
+  t.after(() => (siteConfig.demo.enabled = saved));
+}
+
 const jsonRequest = (method, body) =>
   new Request("https://demo.example/api/admin", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
@@ -57,22 +64,26 @@ const calls = {
   "DELETE blocked": () => blockedRoute.DELETE(jsonRequest("DELETE", { date: "2099-01-06" })),
 };
 
-test("open demo admin: with demo on and no ADMIN_PASSWORD, admin API routes respond 200 without a session", async (t) => {
-  withEnv(t, { ADMIN_PASSWORD: undefined });
-  setRequestCookies({});
-  assert.equal(isOpenDemoAdmin(), true);
-  for (const [name, call] of Object.entries(calls)) {
-    assert.equal((await call()).status, 200, name);
-  }
-  // Contacts leave the API masked, so the open view never receives the real values.
-  const { bookings } = await (await bookingsRoute.GET()).json();
-  const c = bookings.find((b) => b.id === fixture.id).customer;
-  assert.deepEqual([c.email, c.phone, c.street, c.zip, c.city], ["j…@example.com", "015…893", STREET_HIDDEN, "10115", "Berlin"]);
-  const { booking } = await (await calls["PATCH booking"]()).json();
-  assert.equal(booking.customer.email, "j…@example.com");
-});
+for (const password of [undefined, "s3cret"]) {
+  test(`open demo admin: in demo mode, admin API routes respond 200 without a session (ADMIN_PASSWORD ${password ? "set" : "unset"})`, async (t) => {
+    withDemoMode(t, true);
+    withEnv(t, { ADMIN_PASSWORD: password });
+    setRequestCookies({});
+    assert.equal(isOpenDemoAdmin(), true);
+    for (const [name, call] of Object.entries(calls)) {
+      assert.equal((await call()).status, 200, name);
+    }
+    // Contacts leave the API masked, so the open view never receives the real values.
+    const { bookings } = await (await bookingsRoute.GET()).json();
+    const c = bookings.find((b) => b.id === fixture.id).customer;
+    assert.deepEqual([c.email, c.phone, c.street, c.zip, c.city], ["j…@example.com", "015…893", STREET_HIDDEN, "10115", "Berlin"]);
+    const { booking } = await (await calls["PATCH booking"]()).json();
+    assert.equal(booking.customer.email, "j…@example.com");
+  });
+}
 
-test("open demo admin: with ADMIN_PASSWORD set, admin API routes respond 401 without a session", async (t) => {
+test("open demo admin: with demo mode off, admin API routes respond 401 without a session", async (t) => {
+  withDemoMode(t, false);
   withEnv(t, { ADMIN_PASSWORD: "s3cret" });
   setRequestCookies({});
   t.after(() => setRequestCookies({}));
@@ -88,12 +99,22 @@ test("open demo admin: with ADMIN_PASSWORD set, admin API routes respond 401 wit
   assert.deepEqual(bookings.find((b) => b.id === fixture.id).customer, fixture.customer);
 });
 
-test("open demo admin: setting ADMIN_PASSWORD ends sessions from the open phase, also with AUTH_SECRET set", async (t) => {
+test("open demo admin: with demo mode off and no ADMIN_PASSWORD, nobody gets in", async (t) => {
+  withDemoMode(t, false);
+  withEnv(t, { ADMIN_PASSWORD: undefined });
+  t.after(() => setRequestCookies({}));
+  setRequestCookies({ [ADMIN_COOKIE]: adminSessionValue() });
+  assert.equal((await bookingsRoute.GET()).status, 401);
+});
+
+test("open demo admin: leaving demo mode ends sessions from the demo phase, also with AUTH_SECRET set", async (t) => {
+  withDemoMode(t, true);
   withEnv(t, { ADMIN_PASSWORD: undefined, AUTH_SECRET: "fixed-secret" });
   t.after(() => setRequestCookies({}));
-  const openPhaseSession = adminSessionValue(); // e.g. from posting "demo" to /api/admin/login
+  const demoPhaseSession = adminSessionValue(); // e.g. from posting "demo" to /api/admin/login
+  siteConfig.demo.enabled = false;
   process.env.ADMIN_PASSWORD = "s3cret";
-  setRequestCookies({ [ADMIN_COOKIE]: openPhaseSession });
+  setRequestCookies({ [ADMIN_COOKIE]: demoPhaseSession });
   assert.equal((await bookingsRoute.GET()).status, 401);
 });
 
@@ -105,9 +126,10 @@ test("open demo admin: masking helpers produce the documented formats", () => {
   assert.equal(maskPhone("123456"), "…"); // first 3 + last 3 would show every digit
 });
 
-test("open demo admin: adminBooking masks only in open demo mode and never alters the stored booking", (t) => {
+test("open demo admin: adminBooking masks in demo mode only and never alters the stored booking", (t) => {
   const original = structuredClone(fixture);
-  withEnv(t, { ADMIN_PASSWORD: undefined });
+  withDemoMode(t, true);
+  withEnv(t, { ADMIN_PASSWORD: "s3cret" }); // irrelevant in demo mode
   const masked = adminBooking(fixture);
   assert.equal(masked.customer.email, "j…@example.com");
   assert.equal(masked.customer.phone, "015…893");
@@ -119,12 +141,6 @@ test("open demo admin: adminBooking masks only in open demo mode and never alter
   ]);
   assert.deepEqual(fixture, original, "input not mutated");
 
-  process.env.ADMIN_PASSWORD = "s3cret";
-  assert.equal(adminBooking(fixture), fixture, "password-protected: unchanged");
-
-  delete process.env.ADMIN_PASSWORD;
-  // NEXT_PUBLIC_DEMO_MODE is read once into siteConfig (and inlined at build time), so toggle the config.
   siteConfig.demo.enabled = false;
-  t.after(() => (siteConfig.demo.enabled = true));
   assert.equal(adminBooking(fixture), fixture, "demo mode off: unchanged");
 });

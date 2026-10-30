@@ -506,7 +506,7 @@ export default function AdminDashboard({ setup, openDemo }) {
                   <span className={`dot ${openDemo ? "warn" : "on"}`} />
                   <span>
                     {openDemo
-                      ? "Dashboard ohne Login offen (Kontaktdaten maskiert). ADMIN_PASSWORD setzen, um es zu sperren."
+                      ? "Demo-Modus: Dashboard ohne Login offen (Kontaktdaten maskiert). Zum Sperren NEXT_PUBLIC_DEMO_MODE=false setzen, dann gilt ADMIN_PASSWORD."
                       : "Eigenes Admin-Passwort gesetzt."}
                   </span>
                 </li>

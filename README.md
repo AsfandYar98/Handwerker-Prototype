@@ -62,14 +62,14 @@ Create the empty repo on GitHub first (no README/licence, so the push isn't reje
 1. vercel.com → **Add New → Project** → import the repo (connect the other GitHub account under *Add GitHub Account* if needed). Framework is detected as Next.js; no settings to change.
 2. **Storage:** Project → *Storage* (or Marketplace) → **Upstash for Redis** → connect. This sets `KV_REST_API_URL` / `KV_REST_API_TOKEN`. Without it, bookings live in memory and vanish on redeploy.
 3. **Environment variables** (Project → Settings → Environment Variables), see [`.env.example`](.env.example):
-   - `ADMIN_PASSWORD` – dashboard password; without it the demo dashboard is open, see [Demo admin](#demo-admin)
+   - `ADMIN_PASSWORD` – dashboard password, applies once demo mode is off, see [Demo admin](#demo-admin)
    - `RESEND_API_KEY`, `MAIL_FROM`, `NOTIFY_EMAIL` – confirmation + meeting-link emails
    - `NEXT_PUBLIC_CALENDLY_URL` (+ `CALENDLY_TOKEN`, `CALENDLY_WEBHOOK_SIGNING_KEY`) – optional Calendly
 4. Redeploy. Every push to `main` deploys automatically.
 
 ## Demo admin
 
-While demo mode is on and `ADMIN_PASSWORD` is unset, `/admin` is open: no login, no password, and anyone with the URL can view and change bookings. Customer contacts are masked in that view (email `j…@example.com`, phone `015…893`, street hidden; ZIP and city stay), while stored bookings, emails and the customer's `.ics` keep the real data. Set `ADMIN_PASSWORD` to lock the dashboard: login is required again and sessions from the open phase end.
+While demo mode is on, `/admin` is open, whether or not `ADMIN_PASSWORD` is set: no login, and anyone with the URL can view and change bookings. Customer contacts are masked in that view (email `j…@example.com`, phone `015…893`, street hidden; ZIP and city stay), while stored bookings, emails and the customer's `.ics` keep the real data. To lock it, set `NEXT_PUBLIC_DEMO_MODE=false` and redeploy; then `ADMIN_PASSWORD` applies and sessions from the demo phase end. This also switches off the other demo safeguards (see *Demo safety* above), so company notifications start going to the real company address.
 
 ## Calendly setup (optional)
 
