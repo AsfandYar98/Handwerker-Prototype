@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function LoginForm({ demoHint }) {
+export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -39,7 +39,6 @@ export default function LoginForm({ demoHint }) {
           aria-invalid={error ? "true" : undefined}
           required
         />
-        {demoHint && <span className="hint">Prototyp: Passwort „demo“. Für den Echtbetrieb ADMIN_PASSWORD setzen.</span>}
         {error && <span className="field-error">{error}</span>}
       </div>
       <button className="btn" type="submit" disabled={busy}>

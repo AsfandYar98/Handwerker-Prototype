@@ -1564,6 +1564,16 @@ a.visually-hidden:focus {
   font-size: 18px;
 }
 
+.admin-badge {
+  padding: 1px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+
 .admin-main {
   padding: 28px 0 64px;
 }

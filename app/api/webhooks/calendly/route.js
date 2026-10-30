@@ -1,5 +1,5 @@
 import { upsertCalendlyBooking } from "@/lib/bookings";
-import { normalize, verifyCalendlySignature } from "@/lib/calendly";
+import { isPhoneQuestion, normalize, verifyCalendlySignature } from "@/lib/calendly";
 import { json } from "@/lib/admin-session";
 
 export const dynamic = "force-dynamic";
@@ -26,7 +26,7 @@ export async function POST(request) {
     event: p.scheduled_event ? { ...p.scheduled_event, uri: p.scheduled_event.uri || p.event } : null,
     invitee: { ...p, status: body.event === "invitee.canceled" ? "canceled" : p.status, event: p.event },
   });
-  const phone = (p.questions_and_answers || []).find((q) => /telefon|phone/i.test(q.question || ""))?.answer;
+  const phone = (p.questions_and_answers || []).find((q) => isPhoneQuestion(q.question))?.answer;
   const booking = await upsertCalendlyBooking(data, { phone });
   return json({ ok: true, id: booking.id });
 }
